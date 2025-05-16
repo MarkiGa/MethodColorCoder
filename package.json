@@ -3,12 +3,17 @@
   "displayName": "highlighter",
   "publisher": "MarkiGames",
   "description": "",
-  "version": "0.0.1",
+  "version": "0.9.0",
   "engines": {
     "vscode": "^1.100.0"
   },
+    "repository": {
+    "type": "git",
+    "url": "https://github.com/MarkiGa/MethodColorCoder.git"
+  },
   "categories": [
-    "Other"
+    "Other",
+    "Extension Packs"
   ],
   "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
