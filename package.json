@@ -3,7 +3,7 @@
   "displayName": "Method Color Coder",
   "publisher": "MarkiGames",
   "description": "Color highlight your methods in your messy code! JS and TS support till now",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "engines": {
     "vscode": "^1.100.0"
   },
