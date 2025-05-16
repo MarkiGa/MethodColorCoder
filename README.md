@@ -6,7 +6,7 @@ Enhances your code visibility drastically with dynamic decorationsto to automati
 
 Your VS Code extension enables dynamic text decorations, allowing seamless updates and removals while responding to configuration changes in real time. It also detects the active programming language, auto-starts on launch, and integrates customizable activation events for an optimized workflow
 
-![Usage example](Media/DemoGifPlugin.gif)
+![Usage example](DemoGifPlugin.gif)
 
 ## Release Notes
 In future release notes will propably come here 
