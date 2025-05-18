@@ -45,9 +45,9 @@
         }
       }
     }
-    
   },
   "dependencies": {
+    "jspython-interpreter": "^2.1.16",
     "typescript": "^5.5.3"
   },
   "scripts": {

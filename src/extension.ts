@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 
 import * as ts from "typescript";
+import { start } from 'repl';
 
 //settings
 let set_opacity = vscode.workspace.getConfiguration('MethodColorCoder').get<number>('overlayOpacity');
@@ -60,7 +61,6 @@ const storedOptionsDec: { [key: string]: vscode.DecorationRenderOptions } = {};
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
     vscode.workspace.onDidChangeConfiguration(event => {
         if (event.affectsConfiguration('MethodColorCoder.overlayOpacity')) {
             handleSettingsChange();
@@ -94,7 +94,6 @@ export function activate(context: vscode.ExtensionContext) {
     });
 }
 
-let existingMethods = new Set<string>();
 
 function highlightMethods(editor: vscode.TextEditor) {
     if(!activated){return;}
@@ -105,103 +104,179 @@ function highlightMethods(editor: vscode.TextEditor) {
     } else {
         // console.log("No active doc!");
     }
-
+    
     switch (actualProgrammingLanguage) {
         case "typescript":
             typescriptJavascriptHighlight(editor);
             break;
-        case "javascript":
-            typescriptJavascriptHighlight(editor);
-            break;
-        default:
-            break;
-    }
-}
+            case "javascript":
+                typescriptJavascriptHighlight(editor);
+                break;
+            case "python":
+                pythonHighlight(editor);
+                break;            
+            default:
+                break;
+                }
+            }
 
 function typescriptJavascriptHighlight (editor:vscode.TextEditor){
-    
+                
 	let listFuc = getMethodsFromAST(editor.document.getText());
 
-	let newMethods = new Set<string>();
-
-    let decorations: { [key: string]: vscode.DecorationOptions[] } = {};
-	
-    let match;
-	
+    addCheckDecStart();
+    
 	for (let i = 0; i < listFuc.length; i++) {
-
-        let startPos = editor.document.positionAt(listFuc[i].start + 10);
+        
+        let startPos  = editor.document.positionAt(listFuc[i].start + 10);
         let endPos = editor.document.positionAt(listFuc[i].end);
-		
+        
 		let methodName = listFuc[i].name;
-		newMethods.add(methodName);	
+		
+        addCheckDecLoop(methodName, startPos, endPos);
+		
+    }
+    addCheckDecFinalize(editor);
+    
+}
+
+let decorations: { [key: string]: vscode.DecorationOptions[] } = {};
+let existingMethods = new Set<string>();
+let newMethods = new Set<string>();
+function addCheckDecStart (){
+    newMethods.clear();
+    decorations = {};
+}
+function addCheckDecLoop (methodName:string, startPos:vscode.Position, endPos:vscode.Position){
+    newMethods.add(methodName);	
 		
 		if (!methodDecorations[methodName]) {
-			// console.log(methodName+"new createed");
+            // console.log(methodName+"new createed");
             const tempOptions : vscode.DecorationRenderOptions = {
-				backgroundColor: getWeightedHueFromString(methodName),
+                backgroundColor: getWeightedHueFromString(methodName),
 				isWholeLine: true
 			};
 			methodDecorations[methodName] = vscode.window.createTextEditorDecorationType(tempOptions);
             storedOptionsDec[methodName] = tempOptions;
 		}
-
+        
 		if (!decorations[methodName]) {
-        	decorations[methodName] = [];
+            decorations[methodName] = [];
         }
-
+        
 		decorations[methodName].push({ range: new vscode.Range(startPos, endPos) });
-    }
-
-	existingMethods.forEach(method => {
+}
+function addCheckDecFinalize (editor : vscode.TextEditor){
+    existingMethods.forEach(method => {
         if (!newMethods.has(method) && methodDecorations[method]) {
             editor.setDecorations(methodDecorations[method], []); // Entfernt Dekoration
             delete methodDecorations[method]; // Lösche aus der Map
             delete storedOptionsDec[method];
         }
     });
-
-	Object.keys(decorations).forEach(method => {
+    
+    Object.keys(decorations).forEach(method => {
         editor.setDecorations(methodDecorations[method], decorations[method]);
     });
-
+    
     existingMethods = newMethods;
 }
 
-function addCheckDecorator (methodName:string, startPos: number, endPos:number)
-
 function pythonHighlight (editor:vscode.TextEditor){
-    let text = vscode.window.activeTextEditor?.document.getText();
+    let text = editor.document.getText();
     text = text?text:"";
-    const methodRegex = /^def (\w+)\(/gm; // Sucht alle Methoden in Python-Dateien
+//     const lines = text.split("\n");
+//     const methodRegex = /^def (\w+)\(/gm; // Sucht alle Methoden in Python-Dateien
+//     addCheckDecStart();
+//     try {
+//         for (let i = 0; i < lines.length; i++) {
+//             const matchPy = methodRegex.exec(lines[i]);
+//             if (matchPy) {
+//                 let methodName = matchPy[1];
+//                 let startPos = i;
+//                 const lineMatch = lines[i].match(/^(\s*)/);
+//                 let indentLevel = 0;
+//                 let _temp = lines[i].match(/^(\s*)/);
+//                 if(_temp){ indentLevel = _temp[0].length;}
+//                 let endPos = startPos;
+//                 for (let j = i + 1; j < lines.length; j++) {
+//                     if (lines[j].trim().startsWith("#")) {continue;}
+//                     let currentIndent=0;
+//                     const _temp2 = lines[j].match(/^(\s*)/);
+//                     if(_temp2){currentIndent = _temp2[0].length;}
+//                     if (lines[j].trim() === "" || currentIndent > indentLevel) {
+//                         endPos = j;
+//                     } else {
+//                         break;
+//                     }
+//                 }
+//                 console.warn("FoundMeth: ", methodName, startPos, endPos);
+//                 const sPos = editor.document.positionAt(startPos);
+//                 const sPoss = editor.document.lineAt(startPos).range.start;
+//                 const ePos = editor.document.positionAt(endPos);
+//                 const ePoss = editor.document.lineAt(endPos).range.start;
+//                 if(sPos && ePos){
+//                     addCheckDecLoop(methodName,sPoss,ePoss);
+//                 }else {console.warn("not possible to convert?!");}
+//             }
+//         }
+// } catch {
+//     console.warn("Catch!");
+// }
+//     // // const methods: string[] = [];
+//     // let match;
+//     // while ((match = methodRegex.exec(text?text:""))) {
+//     //     methods.push(match[1]); // Speichert den Namen der Methode
+//     // }
+//     // console.log("Gefundene Methoden:", methods);
 
-    const methods: string[] = [];
-    let match;
-    while ((match = methodRegex.exec(text?text:""))) {
-        methods.push(match[1]); // Speichert den Namen der Methode
+//     // methods.forEach(name => {
+//     //     const start = text.indexOf(`def ${name}(`);
+//     //     const startPos = vscode.window.activeTextEditor?.document.positionAt(start);
+//     //     const endPos = vscode.window.activeTextEditor?.document.positionAt(start + name.length);
+//     //     addCheckDecLoop(name, startPos, endPos)
+//     // });
+
+const classRegex = /^class (\w+):/gm; // Klassen erkennen
+const methodRegex = /^\s*def (\w+)\(/gm; // Methoden erkennen (beliebige Einrückung zulassen)
+
+const lines = text.split("\n");
+const methods: { name: string; start: number; end: number }[] = [];
+let classIndentLevels: number[] = [];
+
+for (let i = 0; i < lines.length; i++) {
+    let classMatch = classRegex.exec(lines[i]);
+    if (classMatch) {
+        let classIndent = lines[i].match(/^(\s*)/)?.[0].length || 0;
+        classIndentLevels.push(classIndent);
     }
-    console.log("Gefundene Methoden:", methods);
 
-    const decorations: vscode.DecorationOptions[] = methods.map(name => {
-        const start = text.indexOf(`def ${name}(`);
-        const startPos = vscode.window.activeTextEditor?.document.positionAt(start);
-        const endPos = vscode.window.activeTextEditor?.document.positionAt(start + name.length);
+    let methodMatch = methodRegex.exec(lines[i]);
+    if (methodMatch) {
+        let methodIndent = lines[i].match(/^(\s*)/)?.[0].length || 0;
+        let insideClass = classIndentLevels.some(indent => methodIndent > indent);
 
-    return {
-        range: new vscode.Range(startPos, endPos),
-        hoverMessage: `Method: ${name}`
-    };
-    });
-
-const methodDecoration = vscode.window.createTextEditorDecorationType({
-    backgroundColor: "rgba(255, 0, 255, 0.3)", // Lila Transparenz
-    isWholeLine: true
+        if (insideClass) {
+            console.log(`Methoden innerhalb einer Klasse erkannt: ${methodMatch[1]}`);
+        } else {
+            console.log(`Eigenständige Methode erkannt: ${methodMatch[1]}`);
+        }
+    }
+}
+methods.forEach(name => {
+    const sPoss = editor.document.lineAt(name.start).range.start;
+    const ePoss = editor.document.lineAt(name.end).range.start;
+    
+    if(sPoss && ePoss){
+        addCheckDecLoop(name.name,sPoss,ePoss);
+    }
 });
 
-vscode.window.activeTextEditor?.setDecorations(methodDecoration, decorations);
-    
-}
 
+
+
+    addCheckDecFinalize(editor);
+}
 function getMethodColor(methodName: string): string {
 	const r = Math.floor(Math.random() * 256);
     const g = Math.floor(Math.random() * 256);

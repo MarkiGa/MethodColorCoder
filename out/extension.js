@@ -112,7 +112,6 @@ function activate(context) {
         }
     });
 }
-let existingMethods = new Set();
 function highlightMethods(editor) {
     if (!activated) {
         return;
@@ -132,34 +131,48 @@ function highlightMethods(editor) {
         case "javascript":
             typescriptJavascriptHighlight(editor);
             break;
+        case "python":
+            pythonHighlight(editor);
+            break;
         default:
             break;
     }
 }
 function typescriptJavascriptHighlight(editor) {
     let listFuc = getMethodsFromAST(editor.document.getText());
-    let newMethods = new Set();
-    let decorations = {};
-    let match;
+    addCheckDecStart();
     for (let i = 0; i < listFuc.length; i++) {
         let startPos = editor.document.positionAt(listFuc[i].start + 10);
         let endPos = editor.document.positionAt(listFuc[i].end);
         let methodName = listFuc[i].name;
-        newMethods.add(methodName);
-        if (!methodDecorations[methodName]) {
-            // console.log(methodName+"new createed");
-            const tempOptions = {
-                backgroundColor: getWeightedHueFromString(methodName),
-                isWholeLine: true
-            };
-            methodDecorations[methodName] = vscode.window.createTextEditorDecorationType(tempOptions);
-            storedOptionsDec[methodName] = tempOptions;
-        }
-        if (!decorations[methodName]) {
-            decorations[methodName] = [];
-        }
-        decorations[methodName].push({ range: new vscode.Range(startPos, endPos) });
+        addCheckDecLoop(methodName, startPos, endPos);
     }
+    addCheckDecFinalize(editor);
+}
+let decorations = {};
+let existingMethods = new Set();
+let newMethods = new Set();
+function addCheckDecStart() {
+    newMethods.clear();
+    decorations = {};
+}
+function addCheckDecLoop(methodName, startPos, endPos) {
+    newMethods.add(methodName);
+    if (!methodDecorations[methodName]) {
+        // console.log(methodName+"new createed");
+        const tempOptions = {
+            backgroundColor: getWeightedHueFromString(methodName),
+            isWholeLine: true
+        };
+        methodDecorations[methodName] = vscode.window.createTextEditorDecorationType(tempOptions);
+        storedOptionsDec[methodName] = tempOptions;
+    }
+    if (!decorations[methodName]) {
+        decorations[methodName] = [];
+    }
+    decorations[methodName].push({ range: new vscode.Range(startPos, endPos) });
+}
+function addCheckDecFinalize(editor) {
     existingMethods.forEach(method => {
         if (!newMethods.has(method) && methodDecorations[method]) {
             editor.setDecorations(methodDecorations[method], []); // Entfernt Dekoration
@@ -171,6 +184,91 @@ function typescriptJavascriptHighlight(editor) {
         editor.setDecorations(methodDecorations[method], decorations[method]);
     });
     existingMethods = newMethods;
+}
+function pythonHighlight(editor) {
+    let text = editor.document.getText();
+    text = text ? text : "";
+    //     const lines = text.split("\n");
+    //     const methodRegex = /^def (\w+)\(/gm; // Sucht alle Methoden in Python-Dateien
+    //     addCheckDecStart();
+    //     try {
+    //         for (let i = 0; i < lines.length; i++) {
+    //             const matchPy = methodRegex.exec(lines[i]);
+    //             if (matchPy) {
+    //                 let methodName = matchPy[1];
+    //                 let startPos = i;
+    //                 const lineMatch = lines[i].match(/^(\s*)/);
+    //                 let indentLevel = 0;
+    //                 let _temp = lines[i].match(/^(\s*)/);
+    //                 if(_temp){ indentLevel = _temp[0].length;}
+    //                 let endPos = startPos;
+    //                 for (let j = i + 1; j < lines.length; j++) {
+    //                     if (lines[j].trim().startsWith("#")) {continue;}
+    //                     let currentIndent=0;
+    //                     const _temp2 = lines[j].match(/^(\s*)/);
+    //                     if(_temp2){currentIndent = _temp2[0].length;}
+    //                     if (lines[j].trim() === "" || currentIndent > indentLevel) {
+    //                         endPos = j;
+    //                     } else {
+    //                         break;
+    //                     }
+    //                 }
+    //                 console.warn("FoundMeth: ", methodName, startPos, endPos);
+    //                 const sPos = editor.document.positionAt(startPos);
+    //                 const sPoss = editor.document.lineAt(startPos).range.start;
+    //                 const ePos = editor.document.positionAt(endPos);
+    //                 const ePoss = editor.document.lineAt(endPos).range.start;
+    //                 if(sPos && ePos){
+    //                     addCheckDecLoop(methodName,sPoss,ePoss);
+    //                 }else {console.warn("not possible to convert?!");}
+    //             }
+    //         }
+    // } catch {
+    //     console.warn("Catch!");
+    // }
+    //     // // const methods: string[] = [];
+    //     // let match;
+    //     // while ((match = methodRegex.exec(text?text:""))) {
+    //     //     methods.push(match[1]); // Speichert den Namen der Methode
+    //     // }
+    //     // console.log("Gefundene Methoden:", methods);
+    //     // methods.forEach(name => {
+    //     //     const start = text.indexOf(`def ${name}(`);
+    //     //     const startPos = vscode.window.activeTextEditor?.document.positionAt(start);
+    //     //     const endPos = vscode.window.activeTextEditor?.document.positionAt(start + name.length);
+    //     //     addCheckDecLoop(name, startPos, endPos)
+    //     // });
+    const classRegex = /^class (\w+):/gm; // Klassen erkennen
+    const methodRegex = /^\s*def (\w+)\(/gm; // Methoden erkennen (beliebige Einrückung zulassen)
+    const lines = text.split("\n");
+    const methods = [];
+    let classIndentLevels = [];
+    for (let i = 0; i < lines.length; i++) {
+        let classMatch = classRegex.exec(lines[i]);
+        if (classMatch) {
+            let classIndent = lines[i].match(/^(\s*)/)?.[0].length || 0;
+            classIndentLevels.push(classIndent);
+        }
+        let methodMatch = methodRegex.exec(lines[i]);
+        if (methodMatch) {
+            let methodIndent = lines[i].match(/^(\s*)/)?.[0].length || 0;
+            let insideClass = classIndentLevels.some(indent => methodIndent > indent);
+            if (insideClass) {
+                console.log(`Methoden innerhalb einer Klasse erkannt: ${methodMatch[1]}`);
+            }
+            else {
+                console.log(`Eigenständige Methode erkannt: ${methodMatch[1]}`);
+            }
+        }
+    }
+    methods.forEach(name => {
+        const sPoss = editor.document.lineAt(name.start).range.start;
+        const ePoss = editor.document.lineAt(name.end).range.start;
+        if (sPoss && ePoss) {
+            addCheckDecLoop(name.name, sPoss, ePoss);
+        }
+    });
+    addCheckDecFinalize(editor);
 }
 function getMethodColor(methodName) {
     const r = Math.floor(Math.random() * 256);
