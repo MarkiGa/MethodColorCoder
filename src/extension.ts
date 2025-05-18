@@ -168,6 +168,40 @@ function typescriptJavascriptHighlight (editor:vscode.TextEditor){
     existingMethods = newMethods;
 }
 
+function addCheckDecorator (methodName:string, startPos: number, endPos:number)
+
+function pythonHighlight (editor:vscode.TextEditor){
+    let text = vscode.window.activeTextEditor?.document.getText();
+    text = text?text:"";
+    const methodRegex = /^def (\w+)\(/gm; // Sucht alle Methoden in Python-Dateien
+
+    const methods: string[] = [];
+    let match;
+    while ((match = methodRegex.exec(text?text:""))) {
+        methods.push(match[1]); // Speichert den Namen der Methode
+    }
+    console.log("Gefundene Methoden:", methods);
+
+    const decorations: vscode.DecorationOptions[] = methods.map(name => {
+        const start = text.indexOf(`def ${name}(`);
+        const startPos = vscode.window.activeTextEditor?.document.positionAt(start);
+        const endPos = vscode.window.activeTextEditor?.document.positionAt(start + name.length);
+
+    return {
+        range: new vscode.Range(startPos, endPos),
+        hoverMessage: `Method: ${name}`
+    };
+    });
+
+const methodDecoration = vscode.window.createTextEditorDecorationType({
+    backgroundColor: "rgba(255, 0, 255, 0.3)", // Lila Transparenz
+    isWholeLine: true
+});
+
+vscode.window.activeTextEditor?.setDecorations(methodDecoration, decorations);
+    
+}
+
 function getMethodColor(methodName: string): string {
 	const r = Math.floor(Math.random() * 256);
     const g = Math.floor(Math.random() * 256);
